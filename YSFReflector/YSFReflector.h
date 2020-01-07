@@ -68,6 +68,9 @@ private:
 
 	CYSFRepeater* findRepeater(const in_addr& address, unsigned int port) const;
 	void dumpRepeaters() const;
+
+	static std::vector<std::string> m_blackList;
+	static bool isBlackListed(const std::string& idOrCall);
 };
 
 #endif

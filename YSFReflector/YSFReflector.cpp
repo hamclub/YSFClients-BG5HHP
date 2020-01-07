@@ -18,6 +18,7 @@
 
 #include "YSFReflector.h"
 #include "StopWatch.h"
+// #include "DMRLookup.h"
 #include "Network.h"
 #include "Version.h"
 #include "Thread.h"
@@ -49,6 +50,15 @@ const char* DEFAULT_INI_FILE = "/etc/YSFReflector.ini";
 #include <cstdarg>
 #include <ctime>
 #include <cstring>
+
+std::vector<std::string> CYSFReflector::m_blackList;
+
+static char* str_ltrim(char* str);
+static char* str_rtrim(char* str);
+static char* str_trim(char* str) {
+	return str_ltrim(str_rtrim(str));
+}
+static bool  str_is_callsign(const char* str);
 
 int main(int argc, char** argv)
 {
@@ -172,6 +182,11 @@ void CYSFReflector::run()
 	
 	network.setCount(0);
 	
+	// CDMRLookup* lookup = new CDMRLookup(m_conf.getLookupName(), m_conf.getLookupTime());
+	// lookup->read();
+
+	m_blackList = m_conf.getBlackList();
+
 	CStopWatch stopWatch;
 	stopWatch.start();
 
@@ -189,6 +204,8 @@ void CYSFReflector::run()
 	unsigned char src[YSF_CALLSIGN_LENGTH];
 	unsigned char dst[YSF_CALLSIGN_LENGTH];
 
+	bool displayed = false;
+
 	for (;;) {
 		unsigned char buffer[200U];
 		in_addr address;
@@ -198,7 +215,15 @@ void CYSFReflector::run()
 		if (len > 0U) {
 			CYSFRepeater* rpt = findRepeater(address, port);
 			if (::memcmp(buffer, "YSFP", 4U) == 0) {
+				displayed = false;
 				if (rpt == NULL) {
+					std::string callsign((char*)(buffer + 4U), 10U);
+					if (/*!str_is_callsign(callsign.c_str()) ||*/ isBlackListed(callsign))
+					{
+						LogMessage("Rejected %s (%s:%u)", callsign.c_str(), ::inet_ntoa(address), port);
+						goto exit;
+					}
+
 					rpt = new CYSFRepeater;
 					rpt->m_callsign = std::string((char*)(buffer + 4U), 10U);
 					rpt->m_address  = address;
@@ -221,6 +246,18 @@ void CYSFReflector::run()
 				}
 				network.setCount(m_repeaters.size());
 			} else if (::memcmp(buffer + 0U, "YSFD", 4U) == 0 && rpt != NULL) {
+				std::string callsign((char*)(buffer + 4U), 10U);
+				if (/*!str_is_callsign(callsign.c_str()) ||*/ isBlackListed(callsign))
+				{
+					if (!displayed)
+					{
+						displayed = true;
+						LogMessage("Rejected %s (%s:%u)", callsign.c_str(), ::inet_ntoa(address), port);
+					}
+					watchdogTimer.stop();
+					goto exit;
+				}
+
 				if (!watchdogTimer.isRunning()) {
 					::memcpy(tag, buffer + 4U, YSF_CALLSIGN_LENGTH);
 
@@ -268,6 +305,8 @@ void CYSFReflector::run()
 			}
 		}
 
+exit:
+
 		unsigned int ms = stopWatch.elapsed();
 		stopWatch.start();
 
@@ -311,6 +350,8 @@ void CYSFReflector::run()
 
 	network.close();
 
+	// lookup->stop();
+
 	::LogFinalise();
 }
 
@@ -341,4 +382,75 @@ void CYSFReflector::dumpRepeaters() const
 		unsigned int timeout = (*it)->m_timer.getTimeout();
 		LogMessage("    %s: %s:%u %u/%u", callsign.c_str(), ::inet_ntoa(address), port, timer, timeout);
 	}
+}
+
+bool CYSFReflector::isBlackListed(const std::string &idOrCall){
+	char buf[64];
+	snprintf(buf, sizeof(buf),"%s",idOrCall.c_str());
+	str_trim(buf);
+	for (std::vector<std::string>::iterator i = m_blackList.begin();i != m_blackList.end(); ++i) {
+		if (::strcmp((*i).c_str(), buf) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static char* str_ltrim(char* str) {
+    if (str == NULL)
+        return NULL;
+
+    int i = 0;
+    while((str[i] == ' ' || str[i] == '\t' || str[i] == '\r' || str[i] == '\n')) {
+        i++;
+    }
+
+    if (i > 0) {
+        size_t len = strlen(str);
+        if (i == len)
+            str[0] = 0;
+        else
+            memmove(str, str + i, len - i + 1);
+    }
+    //return str + i;
+    return str;
+}
+
+static char* str_rtrim(char* str) {
+    if (str == NULL)
+        return NULL;
+
+    int len = strlen(str);
+    int i;
+    for(i = len - 1; i>=0; i--){
+        if (str[i] == ' ' || str[i] == '\t' || str[i] == '\r' || str[i] == '\n'){
+            str[i] = 0;
+            continue;
+        }
+        if (str[i] != 0)
+            break;
+    }
+    return str;
+}
+
+static bool str_is_callsign(const char* str) {
+	assert(str);
+	char buf[24];
+	snprintf(buf, sizeof(buf),"%s",str);
+	str_trim(buf);
+	int len = strlen(buf);
+	if (len > 8 || len < 3)
+		return false;
+	
+	if (isdigit(buf[0]) || isdigit(buf[len-1]))
+		return false;
+
+	// only 1 digit
+	int digits = 0;
+	for (int i = 1;i<len - 1;i++) {
+		if (isdigit(buf[i]))
+			digits++;
+	}
+
+	return digits == 1;
 }

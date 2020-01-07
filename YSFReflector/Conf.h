@@ -33,6 +33,12 @@ public:
   // The General section
   bool         getDaemon() const;
 
+  // The Callsign check section
+  std::vector<std::string> getBlackList() const;
+  bool isLookupEnable() const;
+  std::string getLookupName() const;
+  unsigned int getLookupTime() const;
+
   // The Info section
   std::string  getName() const;
   std::string  getDescription() const;
@@ -50,6 +56,11 @@ public:
 private:
   std::string  m_file;
   bool         m_daemon;
+
+  std::vector<std::string> m_blackList;
+  bool         m_lookupEnable;
+  std::string  m_lookupName;
+  unsigned int m_lookupTime;
 
   std::string  m_name;
   std::string  m_description;

@@ -29,6 +29,7 @@ const int BUFFER_SIZE = 500;
 enum SECTION {
   SECTION_NONE,
   SECTION_GENERAL,
+  SECTION_ID_LOOKUP,
   SECTION_INFO,
   SECTION_LOG,
   SECTION_NETWORK
@@ -37,6 +38,10 @@ enum SECTION {
 CConf::CConf(const std::string& file) :
 m_file(file),
 m_daemon(false),
+m_blackList(),
+m_lookupEnable(true),
+m_lookupName(),
+m_lookupTime(0U),
 m_name(),
 m_description(),
 m_logDisplayLevel(0U),
@@ -70,6 +75,8 @@ bool CConf::read()
 	  if (buffer[0U] == '[') {
 		  if (::strncmp(buffer, "[General]", 9U) == 0)
 			  section = SECTION_GENERAL;
+		  else if (::strncmp(buffer, "[Id Lookup]", 11U) == 0)
+			  section = SECTION_ID_LOOKUP;
 		  else if (::strncmp(buffer, "[Info]", 6U) == 0)
 			  section = SECTION_INFO;
 		  else if (::strncmp(buffer, "[Log]", 5U) == 0)
@@ -90,6 +97,21 @@ bool CConf::read()
 	  if (section == SECTION_GENERAL) {
 		  if (::strcmp(key, "Daemon") == 0)
 			  m_daemon = ::atoi(value) == 1;
+	  } else if (section == SECTION_ID_LOOKUP) {
+		  if (::strcmp(key, "Enable") == 0)
+			  m_lookupEnable = ::atoi(value) == 1;
+		  else if (::strcmp(key, "Name") == 0)
+			  m_lookupName = value;
+		  else if (::strcmp(key, "Time") == 0)
+			  m_lookupTime = (unsigned int)::atoi(value);
+		  else if (::strcmp(key, "BlackList") == 0) {
+			char* p = ::strtok(value, ",\r\n");
+			while (p != NULL) {
+				if (::strlen(p) > 0)
+					m_blackList.push_back(p);
+				p = ::strtok(NULL, ",\r\n");
+			}
+		}
 	  } else if (section == SECTION_INFO) {
 		  if (::strcmp(key, "Name") == 0)
 			  m_name = value;
@@ -120,6 +142,26 @@ bool CConf::read()
 bool CConf::getDaemon() const
 {
 	return m_daemon;
+}
+
+std::vector<std::string> CConf::getBlackList() const
+{
+	return m_blackList;
+}
+
+bool CConf::isLookupEnable() const
+{
+	return m_lookupEnable;
+}
+
+std::string CConf::getLookupName() const
+{
+	return m_lookupName;
+}
+
+unsigned int CConf::getLookupTime() const
+{
+	return m_lookupTime;
 }
 
 std::string CConf::getName() const
