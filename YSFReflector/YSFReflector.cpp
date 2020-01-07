@@ -400,7 +400,7 @@ static char* str_ltrim(char* str) {
     if (str == NULL)
         return NULL;
 
-    int i = 0;
+    unsigned int i = 0;
     while((str[i] == ' ' || str[i] == '\t' || str[i] == '\r' || str[i] == '\n')) {
         i++;
     }
@@ -434,7 +434,7 @@ static char* str_rtrim(char* str) {
 }
 
 static bool str_is_callsign(const char* str) {
-	assert(str);
+	// assert(str);
 	char buf[24];
 	snprintf(buf, sizeof(buf),"%s",str);
 	str_trim(buf);
