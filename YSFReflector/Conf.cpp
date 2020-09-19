@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2015,2016 by Jonathan Naylor G4KLX
+ *   Copyright (C) 2015,2016,2020 by Jonathan Naylor G4KLX
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -42,6 +42,7 @@ m_blackList(),
 m_lookupEnable(true),
 m_lookupName(),
 m_lookupTime(0U),
+m_id(0U),
 m_name(),
 m_description(),
 m_logDisplayLevel(0U),
@@ -49,7 +50,8 @@ m_logFileLevel(0U),
 m_logFilePath(),
 m_logFileRoot(),
 m_networkPort(0U),
-m_networkDebug(false)
+m_networkDebug(false),
+m_networkBindAddr()
 {
 }
 
@@ -113,7 +115,9 @@ bool CConf::read()
 			}
 		}
 	  } else if (section == SECTION_INFO) {
-		  if (::strcmp(key, "Name") == 0)
+		  if (::strcmp(key, "Id") == 0)
+			  m_id = (unsigned int)::atoi(value);
+		  else if (::strcmp(key, "Name") == 0)
 			  m_name = value;
 		  else if (::strcmp(key, "Description") == 0)
 			  m_description = value;
@@ -131,6 +135,8 @@ bool CConf::read()
 			  m_networkPort = (unsigned int)::atoi(value);
 		  else if (::strcmp(key, "Debug") == 0)
 			  m_networkDebug = ::atoi(value) == 1;
+		  else if (::strcmp(key, "BindAddress") == 0)
+			  m_networkBindAddr = value;
 	  }
   }
 
@@ -164,6 +170,11 @@ unsigned int CConf::getLookupTime() const
 	return m_lookupTime;
 }
 
+unsigned int CConf::getId() const
+{
+	return m_id;
+}
+
 std::string CConf::getName() const
 {
 	return m_name;
@@ -186,12 +197,12 @@ unsigned int CConf::getLogFileLevel() const
 
 std::string CConf::getLogFilePath() const
 {
-  return m_logFilePath;
+	return m_logFilePath;
 }
 
 std::string CConf::getLogFileRoot() const
 {
-  return m_logFileRoot;
+	return m_logFileRoot;
 }
 
 unsigned int CConf::getNetworkPort() const
@@ -202,4 +213,9 @@ unsigned int CConf::getNetworkPort() const
 bool CConf::getNetworkDebug() const
 {
 	return m_networkDebug;
+}
+
+std::string CConf::getNetworkBindAddr() const
+{
+	return m_networkBindAddr;
 }

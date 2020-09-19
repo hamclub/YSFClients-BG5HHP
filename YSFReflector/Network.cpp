@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2009-2014,2016 by Jonathan Naylor G4KLX
+ *   Copyright (C) 2009-2014,2016,2020 by Jonathan Naylor G4KLX
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -24,8 +24,9 @@
 #include <cassert>
 #include <cstring>
 
-CNetwork::CNetwork(unsigned int port, const std::string& name, const std::string& description, bool debug) :
+CNetwork::CNetwork(unsigned int port, unsigned int id, const std::string& name, const std::string& description, bool debug) :
 m_socket(port),
+m_id(id),
 m_name(name),
 m_description(description),
 m_callsign(),
@@ -43,11 +44,14 @@ CNetwork::~CNetwork()
 	delete[] m_status;
 }
 
-bool CNetwork::open()
+bool CNetwork::open(const std::string& bindaddr)
 {
-	::fprintf(stdout, "Opening YSF network connection\n");
+	if (bindaddr.length() > 0)
+		::fprintf(stdout, "Opening YSF network connection on address %s\n", bindaddr.c_str());
+	else 
+		::fprintf(stdout, "Opening YSF network connection on all interfaces\n");
 
-	return m_socket.open();
+	return m_socket.open(bindaddr);
 }
 
 bool CNetwork::writeData(const unsigned char* data, const in_addr& address, unsigned int port)
@@ -95,14 +99,18 @@ unsigned int CNetwork::readData(unsigned char* data, unsigned int length, in_add
 	if (len <= 0)
 		return 0U;
 
+	if (m_debug)
+		CUtils::dump(1U, "YSF Network Data Received", data, len);
+
+	// Throw away any options messages
+	if (::memcmp(data, "YSFO", 4U) == 0)
+		return 0U;
+
 	// Handle incoming status requests
 	if (::memcmp(data, "YSFS", 4U) == 0) {
 		m_socket.write(m_status, 42U, address, port);
 		return 0U;
 	}
-
-	if (m_debug)
-		CUtils::dump(1U, "YSF Network Data Received", data, len);
 
 	return len;
 }
@@ -112,18 +120,20 @@ void CNetwork::setCount(unsigned int count)
 	if (count > 999U)
 		count = 999U;
 
-	unsigned int hash = 0U;
+	unsigned int hash = m_id;
 
-	for (unsigned int i = 0U; i < m_name.size(); i++) {
-		hash += m_name.at(i);
-		hash += (hash << 10);
-		hash ^= (hash >> 6);
+	if (hash == 0U) {
+		for (unsigned int i = 0U; i < m_name.size(); i++) {
+			hash += m_name.at(i);
+			hash += (hash << 10);
+			hash ^= (hash >> 6);
+		}
+
+		// Final avalanche
+		hash += (hash << 3);
+		hash ^= (hash >> 11);
+		hash += (hash << 15);
 	}
-
-	// Final avalanche
-	hash += (hash << 3);
-	hash ^= (hash >> 11);
-	hash += (hash << 15);
 
 	::sprintf((char*)m_status, "YSFS%05u%16.16s%14.14s%03u", hash % 100000U, m_name.c_str(), m_description.c_str(), count);
 }

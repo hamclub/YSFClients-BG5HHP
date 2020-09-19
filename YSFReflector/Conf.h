@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2015,2016 by Jonathan Naylor G4KLX
+ *   Copyright (C) 2015,2016,2020 by Jonathan Naylor G4KLX
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ public:
   unsigned int getLookupTime() const;
 
   // The Info section
+  unsigned int getId() const;
   std::string  getName() const;
   std::string  getDescription() const;
 
@@ -52,6 +53,7 @@ public:
   // The Network section
   unsigned int getNetworkPort() const;
   bool         getNetworkDebug() const;
+  std::string  getNetworkBindAddr() const;
 
 private:
   std::string  m_file;
@@ -62,6 +64,7 @@ private:
   std::string  m_lookupName;
   unsigned int m_lookupTime;
 
+  unsigned int m_id;
   std::string  m_name;
   std::string  m_description;
 
@@ -72,6 +75,7 @@ private:
 
   unsigned int m_networkPort;
   bool         m_networkDebug;
+  std::string  m_networkBindAddr;
 };
 
 #endif
