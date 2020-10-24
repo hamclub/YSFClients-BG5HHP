@@ -437,25 +437,3 @@ static char* str_rtrim(char* str) {
     }
     return str;
 }
-
-static bool str_is_callsign(const char* str) {
-	// assert(str);
-	char buf[24];
-	snprintf(buf, sizeof(buf),"%s",str);
-	str_trim(buf);
-	int len = strlen(buf);
-	if (len > 8 || len < 3)
-		return false;
-	
-	if (isdigit(buf[0]) || isdigit(buf[len-1]))
-		return false;
-
-	// only 1 digit
-	int digits = 0;
-	for (int i = 1;i<len - 1;i++) {
-		if (isdigit(buf[i]))
-			digits++;
-	}
-
-	return digits == 1;
-}
