@@ -59,7 +59,6 @@ static char* str_rtrim(char* str);
 static char* str_trim(char* str) {
 	return str_ltrim(str_rtrim(str));
 }
-static bool  str_is_callsign(const char* str);
 
 int main(int argc, char** argv)
 {
