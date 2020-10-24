@@ -1,5 +1,6 @@
 /*
 *   Copyright (C) 2016,2018,2020 by Jonathan Naylor G4KLX
+*   Copyright (C) 2019,2020 by BG5HHP
 *
 *   This program is free software; you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -200,7 +201,7 @@ void CYSFReflector::run()
 	CTimer pollTimer(1000U, 5U);
 	pollTimer.start();
 
-	LogMessage("Starting YSFReflector-%s", VERSION);
+	LogMessage("Starting YSFReflector-%s blacklist mods by BG5HHP", VERSION);
 
 	CTimer watchdogTimer(1000U, 0U, 1500U);
 
