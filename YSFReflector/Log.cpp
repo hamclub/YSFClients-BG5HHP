@@ -42,6 +42,7 @@ static bool m_daemon = false;
 static unsigned int m_displayLevel = 2U;
 
 static struct tm m_tm;
+static bool m_utc = true;
 
 static char LEVELS[] = " DMIWEF";
 
@@ -55,7 +56,11 @@ static bool LogOpen()
 	time_t now;
 	::time(&now);
 
-	struct tm* tm = ::gmtime(&now);
+	struct tm* tm;
+	if (m_utc)
+		tm = ::gmtime(&now);
+	else
+		tm = ::localtime(&now);
 
 	if (tm->tm_mday == m_tm.tm_mday && tm->tm_mon == m_tm.tm_mon && tm->tm_year == m_tm.tm_year) {
 		if (m_fpLog != NULL)
@@ -88,11 +93,17 @@ static bool LogOpen()
 
 bool LogInitialise(bool daemon, const std::string& filePath, const std::string& fileRoot, unsigned int fileLevel, unsigned int displayLevel)
 {
+	return LogInitialise(daemon, filePath,fileRoot, fileLevel, displayLevel, false);
+}
+
+bool LogInitialise(bool daemon, const std::string& filePath, const std::string& fileRoot, unsigned int fileLevel, unsigned int displayLevel, bool utc)
+{
 	m_filePath     = filePath;
 	m_fileRoot     = fileRoot;
 	m_fileLevel    = fileLevel;
 	m_displayLevel = displayLevel;
 	m_daemon       = daemon;
+	m_utc		   = utc;
 
 	if (m_daemon)
 		m_displayLevel = 0U;
@@ -110,25 +121,35 @@ void Log(unsigned int level, const char* fmt, ...)
 {
 	assert(fmt != NULL);
 
-	char buffer[501U];
+	// don't log if log level is disabled
+	if ((level < m_fileLevel || m_fileLevel == 0) && (level < m_displayLevel || m_displayLevel == 0))
+		return;
+
+	char buffer[512U];
+	unsigned int len;
+
 #if defined(_WIN32) || defined(_WIN64)
 	SYSTEMTIME st;
 	::GetSystemTime(&st);
 
-	::sprintf(buffer, "%c: %04u-%02u-%02u %02u:%02u:%02u.%03u ", LEVELS[level], st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+	len = ::sprintf(buffer, "%c: %04u-%02u-%02u %02u:%02u:%02u.%03u ", LEVELS[level], st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
 #else
 	struct timeval now;
 	::gettimeofday(&now, NULL);
 
-	struct tm* tm = ::gmtime(&now.tv_sec);
+	struct tm* tm;
+	if (m_utc)
+		tm = ::gmtime(&now.tv_sec);
+	else
+		tm = ::localtime(&now.tv_sec);
 
-	::sprintf(buffer, "%c: %04d-%02d-%02d %02d:%02d:%02d.%03ld ", LEVELS[level], tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, now.tv_usec / 1000L);
+	len = ::sprintf(buffer, "%c: %04d-%02d-%02d %02d:%02d:%02d.%03ld ", LEVELS[level], tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, now.tv_usec / 1000L);
 #endif
 
 	va_list vl;
 	va_start(vl, fmt);
 
-	::vsnprintf(buffer + ::strlen(buffer), 500, fmt, vl);
+	::vsnprintf(buffer + len, 512 - len, fmt, vl);
 
 	va_end(vl);
 
