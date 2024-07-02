@@ -24,6 +24,8 @@
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <cerrno>
 #include <cstring>
+#include <cstdio>
+#include <cstdlib>
 #endif
 
 
