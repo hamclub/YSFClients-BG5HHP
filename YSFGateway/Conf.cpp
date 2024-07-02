@@ -74,6 +74,8 @@ m_networkOptions(),
 m_networkInactivityTimeout(0U),
 m_networkRevert(false),
 m_networkDebug(false),
+m_networkAddress(),
+m_networkPort(0U),
 m_ysfNetworkEnabled(false),
 m_ysfNetworkPort(0U),
 m_ysfNetworkHosts(),
@@ -223,6 +225,10 @@ bool CConf::read()
 			m_networkRevert = ::atoi(value) == 1;
 		else if (::strcmp(key, "Debug") == 0)
 			m_networkDebug = ::atoi(value) == 1;
+		else if (::strcmp(key, "Address") == 0)
+			m_networkAddress = value;
+		else if (::strcmp(key, "Port") == 0)
+			m_networkPort = (unsigned int)::atoi(value);
 	} else if (section == SECTION_YSF_NETWORK) {
 		if (::strcmp(key, "Enable") == 0)
 			m_ysfNetworkEnabled = ::atoi(value) == 1;
@@ -438,6 +444,16 @@ bool CConf::getNetworkRevert() const
 bool CConf::getNetworkDebug() const
 {
 	return m_networkDebug;
+}
+
+std::string CConf::getNetworkAddress() const
+{
+	return m_networkAddress;
+}
+
+unsigned int CConf::getNetworkPort() const
+{
+	return m_networkPort;
 }
 
 bool CConf::getYSFNetworkEnabled() const

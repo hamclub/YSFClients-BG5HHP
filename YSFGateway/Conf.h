@@ -71,6 +71,9 @@ public:
   unsigned int getNetworkInactivityTimeout() const;
   bool         getNetworkRevert() const;
   bool         getNetworkDebug() const;
+  std::string  getNetworkAddress() const;
+  unsigned int getNetworkPort() const;
+
 
   // The YSF Network section
   bool         getYSFNetworkEnabled() const;
@@ -139,6 +142,8 @@ private:
   unsigned int m_networkInactivityTimeout;
   bool         m_networkRevert;
   bool         m_networkDebug;
+  std::string  m_networkAddress;
+  unsigned int m_networkPort;
 
   bool         m_ysfNetworkEnabled;
   unsigned int m_ysfNetworkPort;

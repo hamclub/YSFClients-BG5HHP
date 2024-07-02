@@ -258,7 +258,12 @@ int CYSFGateway::run()
 		}
 	}
 
-	m_startup   = m_conf.getNetworkStartup();
+	if (!m_conf.getNetworkAddress().empty()) {
+		m_startup = "XLink";						// the default xlink server
+	} else {
+		m_startup   = m_conf.getNetworkStartup();
+	}
+
 	m_options   = m_conf.getNetworkOptions();
 	bool revert = m_conf.getNetworkRevert();
 	bool wiresXCommandPassthrough = m_conf.getWiresXCommandPassthrough();
@@ -268,7 +273,7 @@ int CYSFGateway::run()
 	CStopWatch stopWatch;
 	stopWatch.start();
 
-	LogMessage("Starting YSFGateway-%s", VERSION);
+	LogMessage("Starting YSFGateway-%s (XLink)", VERSION);
 
 	for (;;) {
 		unsigned char buffer[200U];
@@ -531,6 +536,12 @@ void CYSFGateway::createWiresX(CYSFNetwork* rptNetwork)
 	std::string filename = m_conf.getFCSNetworkFile();
 	if (m_fcsNetworkEnabled)
 		readFCSRoomsFile(filename);
+
+	address = m_conf.getNetworkAddress();
+	port = m_conf.getNetworkPort();
+	if (!address.empty()) {
+		m_reflectors->setXLinkServer(address, port > 0 ? port : 62032);
+	}
 
 	m_reflectors->load();
 	m_wiresX->start();
@@ -845,6 +856,7 @@ void CYSFGateway::startupLinking()
 			}
 		}
 	}
+
 	if (m_startup.empty())
 		LogMessage("No connection startup");
 }

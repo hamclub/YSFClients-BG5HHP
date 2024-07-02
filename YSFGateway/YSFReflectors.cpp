@@ -28,6 +28,8 @@
 
 CYSFReflectors::CYSFReflectors(const std::string& hostsFile, unsigned int reloadTime, bool makeUpper) :
 m_hostsFile(hostsFile),
+m_xlinkAddress(),
+m_xlinkPort(0U),
 m_parrotAddress(),
 m_parrotPort(0U),
 m_YSF2DMRAddress(),
@@ -74,6 +76,11 @@ static bool refComparison(const CYSFReflector* r1, const CYSFReflector* r2)
 	}
 
 	return false;
+}
+
+void CYSFReflectors::setXLinkServer(const std::string& address, unsigned int port) {
+	m_xlinkAddress = address;
+	m_xlinkPort = port;
 }
 
 void CYSFReflectors::setParrot(const std::string& address, unsigned int port)
@@ -154,6 +161,23 @@ bool CYSFReflectors::load()
 
 	size_t size = m_newReflectors.size();
 	LogInfo("Loaded %u YSF reflectors", size);
+
+	// Add the xlink server entry
+	if (!m_xlinkAddress.empty()) {
+		CYSFReflector* refl = new CYSFReflector;
+		refl->m_id      = "00010";
+		refl->m_name    = "XLink           ";
+		refl->m_desc    = "XLink Server  ";
+		refl->m_address = CUDPSocket::lookup(m_xlinkAddress);
+		refl->m_port    = m_xlinkPort;
+		refl->m_count   = "000";
+		refl->m_type    = YT_YSF;
+		refl->m_wiresX  = false;
+
+		m_newReflectors.push_back(refl);
+
+		LogInfo("Loaded XLink Server");
+	}
 
 	// Add the Parrot entry
 	if (m_parrotPort > 0U) {

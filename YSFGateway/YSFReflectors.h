@@ -59,6 +59,7 @@ public:
 	CYSFReflectors(const std::string& hostsFile, unsigned int reloadTime, bool makeUpper);
 	~CYSFReflectors();
 
+	void setXLinkServer(const std::string& address, unsigned int port);
 	void setParrot(const std::string& address, unsigned int port);	
 	void setYSF2DMR(const std::string& address, unsigned int port);
 	void setYSF2NXDN(const std::string& address, unsigned int port);
@@ -80,6 +81,8 @@ public:
 
 private:
 	std::string                 m_hostsFile;
+	std::string                 m_xlinkAddress;
+	unsigned int                m_xlinkPort;
 	std::string                 m_parrotAddress;
 	unsigned int                m_parrotPort;
 	std::string                 m_YSF2DMRAddress;
