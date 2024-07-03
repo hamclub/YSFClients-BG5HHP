@@ -259,7 +259,7 @@ int CYSFGateway::run()
 	}
 
 	if (!m_conf.getNetworkAddress().empty()) {
-		m_startup = "XLink";						// the default xlink server
+		m_startup = "HHPLink";						// the default hhplink server
 	} else {
 		m_startup   = m_conf.getNetworkStartup();
 	}
@@ -273,7 +273,7 @@ int CYSFGateway::run()
 	CStopWatch stopWatch;
 	stopWatch.start();
 
-	LogMessage("Starting YSFGateway-%s (XLink)", VERSION);
+	LogMessage("Starting YSFGateway-%s (HHPLink)", VERSION);
 
 	for (;;) {
 		unsigned char buffer[200U];

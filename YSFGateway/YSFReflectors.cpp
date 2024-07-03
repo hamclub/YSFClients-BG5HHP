@@ -166,8 +166,8 @@ bool CYSFReflectors::load()
 	if (!m_xlinkAddress.empty()) {
 		CYSFReflector* refl = new CYSFReflector;
 		refl->m_id      = "00010";
-		refl->m_name    = "XLink           ";
-		refl->m_desc    = "XLink Server  ";
+		refl->m_name    = "HHPLink         ";
+		refl->m_desc    = "HHPLink Server";
 		refl->m_address = CUDPSocket::lookup(m_xlinkAddress);
 		refl->m_port    = m_xlinkPort;
 		refl->m_count   = "000";
@@ -176,7 +176,7 @@ bool CYSFReflectors::load()
 
 		m_newReflectors.push_back(refl);
 
-		LogInfo("Loaded XLink Server");
+		LogInfo("Loaded HHPLink Server");
 	}
 
 	// Add the Parrot entry
