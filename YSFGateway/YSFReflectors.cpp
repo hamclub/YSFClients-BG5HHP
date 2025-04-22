@@ -165,7 +165,7 @@ bool CYSFReflectors::load()
 	// Add the xlink server entry
 	if (!m_xlinkAddress.empty()) {
 		CYSFReflector* refl = new CYSFReflector;
-		refl->m_id      = "00010";
+		refl->m_id      = "00000";
 		refl->m_name    = "HHPLink         ";
 		refl->m_desc    = "HHPLink Server";
 		refl->m_address = CUDPSocket::lookup(m_xlinkAddress);
