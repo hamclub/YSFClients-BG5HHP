@@ -1,5 +1,5 @@
 /*
-*   Copyright (C) 2016,2017,2018,2019 by Jonathan Naylor G4KLX
+*   Copyright (C) 2016,2017,2018,2019,2020 by Jonathan Naylor G4KLX
 *
 *   This program is free software; you can redistribute it and/or modify
 *   it under the terms of the GNU General Public License as published by
@@ -185,19 +185,22 @@ bool CWiresX::start()
 	return true;
 }
 
-WX_STATUS CWiresX::process(const unsigned char* data, const unsigned char* source, unsigned char fi, unsigned char dt, unsigned char fn, unsigned char ft, bool wiresXCommandPassthrough)
+WX_STATUS CWiresX::process(const unsigned char* data, const unsigned char* source, const CYSFFICH& fich, bool wiresXCommandPassthrough)
 {
 	assert(data != NULL);
 	assert(source != NULL);
 
+	unsigned char dt = fich.getDT();
 	if (dt != YSF_DT_DATA_FR_MODE)
 		return WXS_NONE;
 
+	unsigned char fi = fich.getFI();
 	if (fi != YSF_FI_COMMUNICATIONS)
 		return WXS_NONE;
 
 	CYSFPayload payload;
 
+	unsigned char fn = fich.getFN();
 	if (fn == 0U)
 		return WXS_NONE;
 
@@ -215,6 +218,7 @@ WX_STATUS CWiresX::process(const unsigned char* data, const unsigned char* sourc
 			return WXS_NONE;
 	}
 
+	unsigned char ft = fich.getFT();
 	if (fn == ft) {
 		bool valid = false;
 
@@ -503,7 +507,7 @@ void CWiresX::createReply(const unsigned char* data, unsigned int length, CYSFNe
 	CSync::add(buffer + 35U);
 
 	CYSFFICH fich;
-	fich.load(DEFAULT_FICH);
+	fich.setRaw(DEFAULT_FICH);
 	fich.setFI(YSF_FI_HEADER);
 	fich.setBT(bt);
 	fich.setFT(ft);
@@ -826,13 +830,13 @@ void CWiresX::sendAllReply()
 	for (unsigned int i = 0U; i < 10U; i++)
 		data[i + 12U] = m_node.at(i);
 
-	unsigned int total = curr.size();
+	unsigned int total = (unsigned int)curr.size();
 	if (total > 999U) total = 999U;
 
-	unsigned int n = curr.size() - m_start;
+	unsigned int n = (unsigned int)curr.size() - m_start;
 	if (n > 20U) n = 20U;
 
-	::sprintf((char*)(data + 22U), "%03u%03u", n, total);
+	::sprintf((char*)(data + 22U), "%03u%03u", 20U, total);
 
 	data[28U] = 0x0DU;
 
@@ -863,8 +867,12 @@ void CWiresX::sendAllReply()
 	}
 
 	unsigned int k = 1029U - offset;
-	for(unsigned int i = 0U; i < k; i++)
-		data[i + offset] = 0x20U;
+	for (unsigned int i = 0U; i < k; i++) {
+		if (((i % 50U) == 49U) && (i > 0U))
+			data[i + offset] = 0x0DU;
+		else
+			data[i + offset] = 0x20U;
+	}
 
 	offset += k;
 
@@ -910,13 +918,13 @@ void CWiresX::sendSearchReply()
 
 	data[22U] = '1';
 
-	unsigned int total = search.size();
+	unsigned int total = (unsigned int)search.size();
 	if (total > 999U) total = 999U;
 
-	unsigned int n = search.size() - m_start;
+	unsigned int n = (unsigned int)search.size() - m_start;
 	if (n > 20U) n = 20U;
 
-	::sprintf((char*)(data + 23U), "%02u%03u", n, total);
+	::sprintf((char*)(data + 23U), "%02u%03u", 20U, total);
 
 	data[28U] = 0x0DU;
 
@@ -947,8 +955,12 @@ void CWiresX::sendSearchReply()
 	}
 
 	unsigned int k = 1029U - offset;
-	for(unsigned int i = 0U; i < k; i++)
-		data[i + offset] = 0x20U;
+	for (unsigned int i = 0U; i < k; i++) {
+		if (((i % 50U) == 49U) && (i > 0U))
+			data[i + offset] = 0x0DU;
+		else
+			data[i + offset] = 0x20U;
+	}
 
 	offset += k;
 
@@ -1019,7 +1031,7 @@ void CWiresX::sendCategoryReply()
 	for (unsigned int i = 0U; i < 10U; i++)
 		data[i + 12U] = m_node.at(i);
 
-	unsigned int n = m_category.size();
+	unsigned int n = (unsigned int)m_category.size();
 	if (n > 20U)
 		n = 20U;
 
@@ -1054,8 +1066,12 @@ void CWiresX::sendCategoryReply()
 	}
 
 	unsigned int k = 1029U - offset;
-	for(unsigned int i = 0U; i < k; i++)
-		data[i + offset] = 0x20U;
+	for (unsigned int i = 0U; i < k; i++) {
+		if (((i % 50U) == 49U) && (i > 0U))
+			data[i + offset] = 0x0DU;
+		else
+			data[i + offset] = 0x20U;
+	}
 
 	offset += k;
 

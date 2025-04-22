@@ -100,17 +100,30 @@ CYSFNetwork::~CYSFNetwork()
 
 bool CYSFNetwork::open()
 {
+	if (m_address.s_addr == INADDR_NONE) {
+		LogError("Unable to resolve the address of the YSF network");
+		return false;
+	}
+
 	LogMessage("Opening YSF network connection");
 
 	return m_socket.open();
 }
 
-void CYSFNetwork::setDestination(const std::string& name, const in_addr& address, unsigned int port)
+bool CYSFNetwork::setDestination(const std::string& name, const in_addr& address, unsigned int port)
 {
 	m_name    = name;
 	m_address = address;
 	m_port    = port;
 	m_linked  = false;
+
+	bool ret = open();
+	if (ret) {
+		m_pollTimer.start();
+		return true;
+	} else {
+		return false;
+	}
 }
 
 void CYSFNetwork::clearDestination()
@@ -120,6 +133,8 @@ void CYSFNetwork::clearDestination()
 	m_linked         = false;
 
 	m_pollTimer.stop();
+
+	close();
 }
 
 void CYSFNetwork::write(const unsigned char* data)
@@ -141,6 +156,9 @@ void CYSFNetwork::writePoll(unsigned int count)
 		return;
 
 	m_pollTimer.start();
+
+	if (m_debug)
+		CUtils::dump(1U, "YSF Network Data Sent", m_poll, 14U);
 
 	for (unsigned int i = 0U; i < count; i++)
 		m_socket.write(m_poll, 14U, m_address, m_port);
@@ -170,6 +188,9 @@ void CYSFNetwork::writeUnlink(unsigned int count)
 
 	if (m_port == 0U)
 		return;
+
+	if (m_debug)
+		CUtils::dump(1U, "YSF Network Data Sent", m_unlink, 14U);
 
 	for (unsigned int i = 0U; i < count; i++)
 		m_socket.write(m_unlink, 14U, m_address, m_port);

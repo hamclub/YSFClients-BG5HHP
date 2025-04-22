@@ -25,6 +25,7 @@
 #include "Timer.h"
 #include "Utils.h"
 #include "Log.h"
+#include "GitVersion.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <Windows.h>
@@ -48,6 +49,17 @@ const char* DEFAULT_INI_FILE = "/etc/YSFGateway.ini";
 #include <clocale>
 #include <cmath>
 
+static bool m_killed = false;
+static int  m_signal = 0;
+
+#if !defined(_WIN32) && !defined(_WIN64)
+static void sigHandler(int signum)
+{
+	m_killed = true;
+	m_signal = signum;
+}
+#endif
+
 int main(int argc, char** argv)
 {
 	const char* iniFile = DEFAULT_INI_FILE;
@@ -55,7 +67,7 @@ int main(int argc, char** argv)
 		for (int currentArg = 1; currentArg < argc; ++currentArg) {
 			std::string arg = argv[currentArg];
 			if ((arg == "-v") || (arg == "--version")) {
-				::fprintf(stdout, "YSFGateway version %s\n", VERSION);
+				::fprintf(stdout, "YSFGateway version %s git #%.7s\n", VERSION, gitversion);
 				return 0;
 			} else if (arg.substr(0, 1) == "-") {
 				::fprintf(stderr, "Usage: YSFGateway [-v|--version] [filename]\n");
@@ -66,11 +78,40 @@ int main(int argc, char** argv)
 		}
 	}
 
-	CYSFGateway* gateway = new CYSFGateway(std::string(iniFile));
+#if !defined(_WIN32) && !defined(_WIN64)
+	::signal(SIGINT,  sigHandler);
+	::signal(SIGTERM, sigHandler);
+	::signal(SIGHUP,  sigHandler);
+#endif
 
-	int ret = gateway->run();
+	int ret = 0;
 
-	delete gateway;
+	do {
+		m_signal = 0;
+		m_killed = false;
+
+		CYSFGateway* gateway = new CYSFGateway(std::string(iniFile));
+		ret = gateway->run();
+
+		delete gateway;
+
+		switch (m_signal) {
+			case 0:
+				break;
+			case 2:
+				::LogInfo("YSFGateway-%s exited on receipt of SIGINT", VERSION);
+				break;
+			case 15:
+				::LogInfo("YSFGateway-%s exited on receipt of SIGTERM", VERSION);
+				break;
+			case 1:
+				::LogInfo("YSFGateway-%s is restarting on receipt of SIGHUP", VERSION);
+				break;
+			default:
+				::LogInfo("YSFGateway-%s exited on receipt of an unknown signal", VERSION);
+				break;
+		}
+	} while (m_signal == 1);
 
 	return ret;
 }
@@ -120,8 +161,7 @@ int CYSFGateway::run()
 		if (pid == -1) {
 			::fprintf(stderr, "Couldn't fork() , exiting\n");
 			return -1;
-		}
-		else if (pid != 0) {
+		} else if (pid != 0) {
 			exit(EXIT_SUCCESS);
 		}
 
@@ -196,11 +236,9 @@ int CYSFGateway::run()
 	unsigned int myPort   = m_conf.getMyPort();
 
 	CYSFNetwork rptNetwork(myAddress, myPort, m_callsign, debug);
-	rptNetwork.setDestination("MMDVM", rptAddress, rptPort);
-
-	ret = rptNetwork.open();
+	ret = rptNetwork.setDestination("MMDVM", rptAddress, rptPort);
 	if (!ret) {
-		::LogError("Cannot open the repeater network port");
+		::LogError("Cannot open the repeater network port %s:%u", m_conf.getRptAddress().c_str(), rptPort);
 		::LogFinalise();
 		return 1;
 	}
@@ -210,12 +248,6 @@ int CYSFGateway::run()
 		unsigned int ysfPort = m_conf.getYSFNetworkPort();
 
 		m_ysfNetwork = new CYSFNetwork(ysfPort, m_callsign, debug);
-		ret = m_ysfNetwork->open();
-		if (!ret) {
-			::LogError("Cannot open the YSF reflector network port");
-			::LogFinalise();
-			return 1;
-		}
 	}
 
 	m_fcsNetworkEnabled = m_conf.getFCSNetworkEnabled();
@@ -274,8 +306,9 @@ int CYSFGateway::run()
 	stopWatch.start();
 
 	LogMessage("Starting YSFGateway-%s (HHPLink)", VERSION);
+	LogMessage("Built %s %s (GitID #%.7s)", __TIME__, __DATE__, gitversion);
 
-	for (;;) {
+	while (!m_killed) {
 		unsigned char buffer[200U];
 		memset(buffer, 0U, 200U);
 
@@ -284,22 +317,22 @@ int CYSFGateway::run()
 			bool valid = fich.decode(buffer + 35U);
 			m_exclude = false;
 			if (valid) {
-				unsigned char fi = fich.getFI();
 				unsigned char dt = fich.getDT();
-				unsigned char fn = fich.getFN();
-				unsigned char ft = fich.getFT();
 
 				CYSFReflector* reflector = m_wiresX->getReflector();
 				if (m_ysfNetwork != NULL && m_linkType == LINK_YSF && wiresXCommandPassthrough && reflector->m_wiresX) {
 					processDTMF(buffer, dt);
-					m_exclude = processWiresX(buffer, fi, dt, fn, ft, true, wiresXCommandPassthrough);
+					processWiresX(buffer, fich, true, wiresXCommandPassthrough);
 				} else {
 					processDTMF(buffer, dt);
-					m_exclude = processWiresX(buffer, fi, dt, fn, ft, false, wiresXCommandPassthrough);
+					processWiresX(buffer, fich, false, wiresXCommandPassthrough);
+					reflector = m_wiresX->getReflector(); //reflector may have changed
+					if (m_ysfNetwork != NULL && m_linkType == LINK_YSF && reflector->m_wiresX)
+						m_exclude = (dt == YSF_DT_DATA_FR_MODE);
 				}
 
 				if (m_gps != NULL)
-					m_gps->data(buffer + 14U, buffer + 35U, fi, dt, fn, ft);
+					m_gps->data(buffer + 14U, buffer + 35U, fich);
 			}
 
 			if (m_ysfNetwork != NULL && m_linkType == LINK_YSF && !m_exclude) {
@@ -429,7 +462,7 @@ int CYSFGateway::run()
 			CThread::sleep(5U);
 	}
 
-	rptNetwork.close();
+	rptNetwork.clearDestination();
 
 	if (m_gps != NULL) {
 		m_writer->close();
@@ -438,7 +471,7 @@ int CYSFGateway::run()
 	}
 
 	if (m_ysfNetwork != NULL) {
-		m_ysfNetwork->close();
+		m_ysfNetwork->clearDestination();
 		delete m_ysfNetwork;
 	}
 
@@ -547,13 +580,11 @@ void CYSFGateway::createWiresX(CYSFNetwork* rptNetwork)
 	m_wiresX->start();
 }
 
-bool CYSFGateway::processWiresX(const unsigned char* buffer, unsigned char fi, unsigned char dt, unsigned char fn, unsigned char ft, bool dontProcessWiresXLocal, bool wiresXCommandPassthrough)
+void CYSFGateway::processWiresX(const unsigned char* buffer, const CYSFFICH& fich, bool dontProcessWiresXLocal, bool wiresXCommandPassthrough)
 {
-	bool ret=true;
-	
 	assert(buffer != NULL);
 
-	WX_STATUS status = m_wiresX->process(buffer + 35U, buffer + 14U, fi, dt, fn, ft, dontProcessWiresXLocal);
+	WX_STATUS status = m_wiresX->process(buffer + 35U, buffer + 14U, fich, dontProcessWiresXLocal);
 	switch (status) {
 	case WXS_CONNECT_YSF: {
 			if (m_linkType == LINK_YSF)
@@ -641,10 +672,8 @@ bool CYSFGateway::processWiresX(const unsigned char* buffer, unsigned char fi, u
 		}
 		break;
 	default:
-		ret = false;
 		break;
 	}
-	return ret;
 }
 
 void CYSFGateway::processDTMF(unsigned char* buffer, unsigned char dt)
