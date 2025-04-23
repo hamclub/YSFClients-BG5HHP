@@ -106,6 +106,12 @@ in_addr CUDPSocket::lookup(const std::string& hostname)
 
 bool CUDPSocket::open()
 {
+#if defined(_WIN32) || defined(_WIN64)
+	assert(m_fd == INVALID_SOCKET);
+#else
+	assert(m_fd == -1);
+#endif
+
 	m_fd = ::socket(PF_INET, SOCK_DGRAM, 0);
 	if (m_fd < 0) {
 #if defined(_WIN32) || defined(_WIN64)
@@ -164,6 +170,14 @@ int CUDPSocket::read(unsigned char* buffer, unsigned int length, in_addr& addres
 {
 	assert(buffer != NULL);
 	assert(length > 0U);
+
+#if defined(_WIN32) || defined(_WIN64)
+	if (m_fd == INVALID_SOCKET)
+		return 0;
+#else
+	if (m_fd == -1)
+		return 0;
+#endif
 
 	// Check that the readfrom() won't block
 	fd_set readFds;
@@ -259,8 +273,14 @@ bool CUDPSocket::write(const unsigned char* buffer, unsigned int length, const i
 void CUDPSocket::close()
 {
 #if defined(_WIN32) || defined(_WIN64)
-	::closesocket(m_fd);
+	if (m_fd != INVALID_SOCKET) {
+		::closesocket(m_fd);
+		m_fd = INVALID_SOCKET;	
+	}
 #else
-	::close(m_fd);
+	if (m_fd >= 0) {
+		::close(m_fd);
+		m_fd = -1;
+	}
 #endif
 }

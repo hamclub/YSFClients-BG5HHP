@@ -70,7 +70,9 @@ m_options(NULL),
 m_opt(),
 m_unlink(NULL),
 m_buffer(1000U, "YSF Network Buffer"),
-m_pollTimer(1000U, 5U)
+m_pollTimer(1000U, 5U),
+m_name(),
+m_linked(false)
 {
 	m_poll = new unsigned char[14U];
 	::memcpy(m_poll + 0U, "YSFP", 4U);
@@ -200,13 +202,13 @@ void CYSFNetwork::writeUnlink(unsigned int count)
 
 void CYSFNetwork::clock(unsigned int ms)
 {
-	unsigned char buffer[BUFFER_LENGTH];
-	in_addr address;
-	unsigned int port;
-
 	m_pollTimer.clock(ms);
 	if (m_pollTimer.isRunning() && m_pollTimer.hasExpired())
 		writePoll();
+
+	unsigned char buffer[BUFFER_LENGTH];
+	in_addr address;
+	unsigned int port;
 
 	int length = m_socket.read(buffer, BUFFER_LENGTH, address, port);
 	if (length <= 0)
