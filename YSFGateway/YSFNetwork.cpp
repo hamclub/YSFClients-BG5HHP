@@ -119,6 +119,8 @@ bool CYSFNetwork::setDestination(const std::string& name, const in_addr& address
 	m_port    = port;
 	m_linked  = false;
 
+	close();
+
 	bool ret = open();
 	if (ret) {
 		m_pollTimer.start();

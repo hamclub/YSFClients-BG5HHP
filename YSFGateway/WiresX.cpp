@@ -43,6 +43,19 @@ const unsigned char DEFAULT_FICH[] = {0x20U, 0x00U, 0x01U, 0x00U};
 
 const unsigned char NET_HEADER[] = "YSFD                    ALL      ";
 
+const static struct TalkgroupData{
+	const char* m_id;
+	const char* m_tgid;
+	const char* m_name;
+	const char* m_count;
+	const char* m_desc;
+} talkgroups[] = {
+	{"6001", "46001", "LINK TG46001", "001", "CN01"},
+	{"6002", "460501", "BR5AK(460501)", "001", "CNZJ"},
+	{"6003", "91", "LINK TG91", "001", "US01"},
+	{"99999", "99999", "UNLINK HHPLink", "999", ""},
+};
+
 CWiresX::CWiresX(const std::string& callsign, const std::string& suffix, CYSFNetwork* network, CYSFReflectors& reflectors) :
 m_callsign(callsign),
 m_node(),
@@ -51,6 +64,7 @@ m_reflectors(reflectors),
 m_reflector(NULL),
 m_id(),
 m_name(),
+m_activeTGID(),
 m_command(NULL),
 m_txFrequency(0U),
 m_rxFrequency(0U),
@@ -373,10 +387,48 @@ WX_STATUS CWiresX::processConnect(const unsigned char* source, const unsigned ch
 
 	std::string id = std::string((char*)data, 5U);
 
-	m_reflector = m_reflectors.findById(id);
-	if (m_reflector == NULL)
+	// disconnect hhplink, back to normal node list
+	if (isHHPLinkDisconnectId(id) && isHHPLinkConnected()) {
+		// perform disconnect
+		m_activeTGID.clear();
+		m_reflector = NULL;
+		m_status = WXSI_DISCONNECT;
+		m_timer.start();
+		return WXS_DISCONNECT;
+	}
+
+	// switch talkgroups
+	if (isHHPLinkConnected()) {
+		// change active group id and perform a fake connect
+		const TalkgroupData* tg = (const TalkgroupData*)findHHPLinkTalkGroupById(id);
+
+		if (tg) {
+			m_activeTGID = tg->m_tgid;
+
+			// perform switch and send connect reply
+			std::string id 		= tg->m_id;
+			std::string name 	= tg->m_name;
+			std::string count 	= tg->m_count;
+			std::string desc 	= tg->m_desc;
+
+			id.resize(5, ' ');
+			name.resize(16, ' ');
+			count.resize(3, ' ');
+			desc.resize(14, ' ');
+
+			this->sendConnectReplyInt(id, name, count, desc);
+
+			return WXS_SWITCH_TG;
+		}
+
+		return WXS_NONE;
+	}
+
+	CYSFReflector* found = m_reflectors.findById(id);
+	if (found == NULL)
 		return WXS_NONE;
 
+	m_reflector = found;
 	m_status = WXSI_CONNECT;
 	m_timer.start();
 
@@ -406,6 +458,7 @@ void CWiresX::processDisconnect(const unsigned char* source)
 	if (source != NULL)
 		::LogDebug("Received Disconect from %10.10s", source);
 
+	m_activeTGID.clear();
 	m_reflector = NULL;
 
 	m_status = WXSI_DISCONNECT;
@@ -719,7 +772,11 @@ void CWiresX::sendConnect(CYSFNetwork* network)
 void CWiresX::sendConnectReply()
 {
 	assert(m_reflector != NULL);
+	return sendConnectReplyInt(m_reflector->m_id, m_reflector->m_name, m_reflector->m_count, m_reflector->m_desc);
+}
 
+void CWiresX::sendConnectReplyInt(const std::string& ref_id, const std::string& ref_name, const std::string& ref_count, const std::string& ref_desc)
+{
 	unsigned char data[110U];
 	::memset(data, 0x00U, 110U);
 	::memset(data, ' ', 90U);
@@ -742,16 +799,16 @@ void CWiresX::sendConnectReply()
 	data[35U] = '5';
 
 	for (unsigned int i = 0U; i < 5U; i++)
-		data[i + 36U] = m_reflector->m_id.at(i);
+		data[i + 36U] = ref_id.at(i);
 
 	for (unsigned int i = 0U; i < 16U; i++)
-		data[i + 41U] = m_reflector->m_name.at(i);
+		data[i + 41U] = ref_name.at(i);
 
 	for (unsigned int i = 0U; i < 3U; i++)
-		data[i + 57U] = m_reflector->m_count.at(i);
+		data[i + 57U] = ref_count.at(i);
 
 	for (unsigned int i = 0U; i < 14U; i++)
-		data[i + 70U] = m_reflector->m_desc.at(i);
+		data[i + 70U] = ref_desc.at(i);
 
 	data[84U] = '0';
 	data[85U] = '0';
@@ -806,8 +863,125 @@ void CWiresX::sendDisconnectReply()
 	m_seqNo++;
 }
 
+bool CWiresX::isHHPLinkConnected() {
+	return m_reflector && m_reflector->m_id == "00000";
+}
+
+bool CWiresX::isHHPLinkDisconnectId(const std::string& id) {
+	return id == "99999";
+}
+
+const void* CWiresX::findHHPLinkTalkGroupById(const std::string& id) {
+	// TODO - get from config
+	const TalkgroupData* tg = NULL;
+	for (int i = 0; i < sizeof(talkgroups) / sizeof(talkgroups[0]);i++) {
+		std::string _id = talkgroups[i].m_id;
+		_id.resize(5, ' ');
+		if (_id == id) {
+			tg = &talkgroups[i];
+			break;
+		}
+	}
+
+	return tg;
+}
+
+int CWiresX::getActiveTGID() const
+{
+	return ::atoi(m_activeTGID.c_str());
+}
+
+void CWiresX::sendAllTalkGroupsReply()
+{
+	unsigned char data[1100U];
+	::memset(data, 0x00U, 1100U);
+
+	data[0U] = m_seqNo;
+
+	for (unsigned int i = 0U; i < 4U; i++)
+		data[i + 1U] = ALL_RESP[i];
+
+	data[5U] = '2';
+	data[6U] = '1';
+
+	for (unsigned int i = 0U; i < 5U; i++)
+		data[i + 7U] = m_id.at(i);
+
+	for (unsigned int i = 0U; i < 10U; i++)
+		data[i + 12U] = m_node.at(i);
+
+	unsigned int total = sizeof(talkgroups) / sizeof(talkgroups[0]); // (unsigned int)curr.size();
+	if (total > 999U) total = 999U;
+
+	unsigned int n = sizeof(talkgroups) / sizeof(talkgroups[0]); // (unsigned int)curr.size() - m_start;
+	if (n > 20U) n = 20U;
+
+	::sprintf((char*)(data + 22U), "%03u%03u", n, total);
+
+	data[28U] = 0x0DU;
+
+	unsigned int offset = 29U;
+	for (unsigned int j = 0U; j < n; j++, offset += 50U) {
+		const TalkgroupData* refl = &talkgroups[j];
+
+		::memset(data + offset, ' ', 50U);
+
+		data[offset + 0U] = '5';
+
+		char* ptr;
+		unsigned int len;
+
+		ptr = (char*)(data + offset + 1U);
+		len = ::strlen(refl->m_id);
+		::memcpy(ptr, refl->m_id, len);
+
+		ptr = (char*)(data + offset + 6U);
+		len = ::strlen(refl->m_name);
+		::memcpy(ptr, refl->m_name, len);
+
+		ptr = (char*)(data + offset + 22U);
+		len = ::strlen(refl->m_count);
+		::memcpy(ptr, refl->m_count, len);
+
+		ptr = (char*)(data + offset + 25U);
+		::memset(ptr, ' ', 10);
+
+		ptr = (char*)(data + offset + 35U);
+		len = ::strlen(refl->m_desc);
+		::memcpy(ptr, refl->m_desc, len);
+
+		data[offset + 49U] = 0x0DU;
+	}
+
+#if 0
+	unsigned int k = 1029U - offset;
+	for (unsigned int i = 0U; i < k; i++) {
+		if (((i % 50U) == 49U) && (i > 0U))
+			data[i + offset] = 0x0DU;
+		else
+			data[i + offset] = 0x20U;
+	}
+
+	offset += k;
+#endif
+
+	data[offset + 0U] = 0x03U;			// End of data marker
+	data[offset + 1U] = CCRC::addCRC(data, offset + 1U);
+
+	CUtils::dump(1U, "ALL Talkgroups Reply", data, offset + 2U);
+
+	createReply(data, offset + 2U);
+
+	m_seqNo++;
+}
+
 void CWiresX::sendAllReply()
 {
+	if (isHHPLinkConnected()) {
+		sendAllTalkGroupsReply();
+		return;
+	}
+
 	if (m_start == 0U)
 		m_reflectors.reload();
 
@@ -866,6 +1040,7 @@ void CWiresX::sendAllReply()
 		data[offset + 49U] = 0x0DU;
 	}
 
+#if 1
 	unsigned int k = 1029U - offset;
 	for (unsigned int i = 0U; i < k; i++) {
 		if (((i % 50U) == 49U) && (i > 0U))
@@ -875,6 +1050,7 @@ void CWiresX::sendAllReply()
 	}
 
 	offset += k;
+#endif
 
 	data[offset + 0U] = 0x03U;			// End of data marker
 	data[offset + 1U] = CCRC::addCRC(data, offset + 1U);

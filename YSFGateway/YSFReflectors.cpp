@@ -163,19 +163,20 @@ bool CYSFReflectors::load()
 	LogInfo("Loaded %u YSF reflectors", size);
 
 	// Add the xlink server entry
+	CYSFReflector* hhplink = NULL;
+	CYSFReflector* hhplinkEnd = NULL;
 	if (!m_xlinkAddress.empty()) {
-		CYSFReflector* refl = new CYSFReflector;
-		refl->m_id      = "00000";
-		refl->m_name    = "HHPLink         ";
-		refl->m_desc    = "HHPLink Server";
-		refl->m_address = CUDPSocket::lookup(m_xlinkAddress);
-		refl->m_port    = m_xlinkPort;
-		refl->m_count   = "000";
-		refl->m_type    = YT_YSF;
-		refl->m_wiresX  = false;
+		hhplink = new CYSFReflector;
+		hhplink->m_id      = "00000";
+		hhplink->m_name    = "HHPLink         ";
+		hhplink->m_desc    = "HHPLink Server";
+		hhplink->m_address = CUDPSocket::lookup(m_xlinkAddress);
+		hhplink->m_port    = m_xlinkPort;
+		hhplink->m_count   = "999";
+		hhplink->m_type    = YT_YSF;
+		hhplink->m_wiresX  = false;
 
-		m_newReflectors.push_back(refl);
-
+		// will later add to the head of list
 		LogInfo("Loaded HHPLink Server");
 	}
 
@@ -274,14 +275,16 @@ bool CYSFReflectors::load()
 	if (size == 0U)
 		return false;
 
+	std::sort(m_newReflectors.begin(), m_newReflectors.end(), refComparison);
+	if (hhplink)
+		m_newReflectors.insert(m_newReflectors.begin(), hhplink);
+
 	if (m_makeUpper) {
 		for (std::vector<CYSFReflector*>::iterator it = m_newReflectors.begin(); it != m_newReflectors.end(); ++it) {
 			std::transform((*it)->m_name.begin(), (*it)->m_name.end(), (*it)->m_name.begin(), ::toupper);
 			std::transform((*it)->m_desc.begin(), (*it)->m_desc.end(), (*it)->m_desc.begin(), ::toupper);
 		}
 	}
-
-	std::sort(m_newReflectors.begin(), m_newReflectors.end(), refComparison);
 
 	return true;
 }

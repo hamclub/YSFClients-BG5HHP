@@ -653,6 +653,7 @@ void CYSFGateway::processWiresX(const unsigned char* buffer, const CYSFFICH& fic
 
 			m_ysfNetwork->writeUnlink(3U);
 			m_ysfNetwork->clearDestination();
+			m_ysfNetwork->setOptions("");
 
 			m_current.clear();
 			m_inactivityTimer.start();
@@ -669,6 +670,22 @@ void CYSFGateway::processWiresX(const unsigned char* buffer, const CYSFFICH& fic
 			m_inactivityTimer.start();
 			m_lostTimer.stop();
 			m_linkType = LINK_NONE;
+		}
+		break;
+	case WXS_SWITCH_TG: 
+		{
+			assert(m_linkType == LINK_YSF);
+			int tgid = m_wiresX->getActiveTGID();
+
+			if (tgid > 0) {
+				LogMessage("Switch Talkgroup(%u) has been requested by %10.10s", tgid, buffer + 14U);
+
+				// We'll use the YSF OPTION string to send the TG=xxxx to reflector server for the subscribe.
+				char buf[32];
+				::snprintf(buf, sizeof(buf), "TG=%u", tgid);
+				m_ysfNetwork->setOptions(buf);
+				// m_options = buf;
+			}
 		}
 		break;
 	default:
@@ -766,6 +783,7 @@ void CYSFGateway::processDTMF(unsigned char* buffer, unsigned char dt)
 
 			m_ysfNetwork->writeUnlink(3U);
 			m_ysfNetwork->clearDestination();
+			m_ysfNetwork->setOptions("");
 
 			m_current.clear();
 			m_inactivityTimer.start();
@@ -1001,6 +1019,7 @@ void CYSFGateway::processRemoteCommands()
 
 				m_ysfNetwork->writeUnlink(3U);
 				m_ysfNetwork->clearDestination();
+				m_ysfNetwork->setOptions("");
 
 				m_current.clear();
 				m_inactivityTimer.stop();

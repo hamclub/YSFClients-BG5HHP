@@ -30,6 +30,22 @@ enum YSF_TYPE {
 	YT_FCS
 };
 
+class CYSFReflectorTG {
+public:
+CYSFReflectorTG() :
+	m_id(),
+	m_tgid(),
+	m_name(),
+	m_desc()
+	{
+	}
+
+	std::string  m_id;
+	std::string  m_tgid;
+	std::string  m_name;
+	std::string  m_desc;
+};
+
 class CYSFReflector {
 public:
 	CYSFReflector() :

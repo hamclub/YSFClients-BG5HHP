@@ -32,7 +32,8 @@ enum WX_STATUS {
 	WXS_NONE,
 	WXS_CONNECT_YSF,
 	WXS_CONNECT_FCS,
-	WXS_DISCONNECT
+	WXS_DISCONNECT,
+	WXS_SWITCH_TG
 };
 
 enum WXSI_STATUS {
@@ -62,6 +63,8 @@ public:
 
 	WX_STATUS process(const unsigned char* data, const unsigned char* source, const CYSFFICH& fich, bool wiresXCommandPassthrough);
 
+	int getActiveTGID() const;
+
 	CYSFReflector* getReflector() const;
 	void setReflector(CYSFReflector* reflector);
 
@@ -80,6 +83,7 @@ private:
 	CYSFReflector*  m_reflector;
 	std::string     m_id;
 	std::string     m_name;
+	std::string     m_activeTGID;
 	unsigned char*  m_command;
 	unsigned int    m_txFrequency;
 	unsigned int    m_rxFrequency;
@@ -110,6 +114,13 @@ private:
 	void sendSearchReply();
 	void sendSearchNotFoundReply();
 	void sendCategoryReply();
+
+	void sendConnectReplyInt(const std::string& id, const std::string& name, const std::string& count, const std::string& desc);
+
+	bool isHHPLinkConnected();
+	bool isHHPLinkDisconnectId(const std::string& id);
+	const void* findHHPLinkTalkGroupById(const std::string& id);
+	void sendAllTalkGroupsReply();
 
 	void createReply(const unsigned char* data, unsigned int length, CYSFNetwork* network = NULL);
 	void writeData(const unsigned char* data, CYSFNetwork* network, bool isYSF2XX);
