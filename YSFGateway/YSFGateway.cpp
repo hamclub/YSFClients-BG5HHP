@@ -599,6 +599,7 @@ void CYSFGateway::processWiresX(const unsigned char* buffer, const CYSFFICH& fic
 			LogMessage("Connect to %5.5s - \"%s\" has been requested by %10.10s", reflector->m_id.c_str(), reflector->m_name.c_str(), buffer + 14U);
 
 			m_ysfNetwork->setDestination(reflector->m_name, reflector->m_address, reflector->m_port);
+			m_ysfNetwork->setOptions(m_options);
 			m_ysfNetwork->writePoll(3U);
 
 			m_current = reflector->m_id;
@@ -724,6 +725,7 @@ void CYSFGateway::processDTMF(unsigned char* buffer, unsigned char dt)
 				LogMessage("Connect via DTMF to %5.5s - \"%s\" has been requested by %10.10s", reflector->m_id.c_str(), reflector->m_name.c_str(), buffer + 14U);
 
 				m_ysfNetwork->setDestination(reflector->m_name, reflector->m_address, reflector->m_port);
+				m_ysfNetwork->setOptions(m_options);	// reset the option string if reconnected.
 				m_ysfNetwork->writePoll(3U);
 
 				m_current = id;
@@ -889,11 +891,10 @@ void CYSFGateway::startupLinking()
 			if (reflector != NULL) {
 				LogMessage("Automatic (re-)connection to %5.5s - \"%s\"", reflector->m_id.c_str(), reflector->m_name.c_str());
 
-				m_ysfNetwork->setOptions(m_options);
-
 				m_wiresX->setReflector(reflector);
 
 				m_ysfNetwork->setDestination(reflector->m_name, reflector->m_address, reflector->m_port);
+				m_ysfNetwork->setOptions(m_options);
 				m_ysfNetwork->writePoll(3U);
 
 				m_current = m_startup;
@@ -963,6 +964,7 @@ void CYSFGateway::processRemoteCommands()
 				LogMessage("Connect by remote command to %5.5s - \"%s\"", reflector->m_id.c_str(), reflector->m_name.c_str());
 
 				m_ysfNetwork->setDestination(reflector->m_name, reflector->m_address, reflector->m_port);
+				m_ysfNetwork->setOptions(m_options);
 				m_ysfNetwork->writePoll(3U);
 
 				m_current = id;
