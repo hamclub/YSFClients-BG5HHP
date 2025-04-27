@@ -431,7 +431,6 @@ int CYSFGateway::run()
 					m_fcsNetwork->clearDestination();
 				}
 
-				m_current.clear();
 				m_lostTimer.stop();
 				m_linkType = LINK_NONE;
 			}
@@ -452,7 +451,6 @@ int CYSFGateway::run()
 				m_fcsNetwork->clearDestination();
 			}
 
-			m_current.clear();
 			m_inactivityTimer.start();
 			m_lostTimer.stop();
 			m_linkType = LINK_NONE;
@@ -686,6 +684,47 @@ void CYSFGateway::processWiresX(const unsigned char* buffer, const CYSFFICH& fic
 				::snprintf(buf, sizeof(buf), "TG=%u", tgid);
 				m_ysfNetwork->setOptions(buf);
 				// m_options = buf;
+			}
+		}
+		break;
+
+	case WXS_RECONNECT_CURRENT:
+		{
+			if (m_wiresX->getReflector() == nullptr && !m_current.empty()) {
+				// trying to reconnect
+				if (m_current.substr(0U, 3U) == "FCS" && m_fcsNetwork != nullptr) {
+					m_inactivityTimer.stop();
+					m_lostTimer.stop();
+
+					bool ok = m_fcsNetwork->writeLink(m_current);
+					m_fcsNetwork->setOptions(m_options);
+
+					if (ok) {
+						LogMessage("Automatic (re-)connection to %s", m_current.c_str());
+
+						m_inactivityTimer.start();
+						m_lostTimer.start();
+						m_linkType = LINK_FCS;
+					}
+				} else if (m_ysfNetwork != nullptr) {
+					m_inactivityTimer.stop();
+					m_lostTimer.stop();
+
+					CYSFReflector* reflector = m_reflectors->findByName(m_current);
+					if (reflector != nullptr) {
+						LogMessage("Automatic (re-)connection to %5.5s - \"%s\"", reflector->m_id.c_str(), reflector->m_name.c_str());
+
+						m_wiresX->setReflector(reflector);
+
+						m_ysfNetwork->setDestination(reflector->m_name, reflector->m_address, reflector->m_port);
+						m_ysfNetwork->setOptions(m_options);
+						m_ysfNetwork->writePoll(3U);
+
+						m_inactivityTimer.start();
+						m_lostTimer.start();
+						m_linkType = LINK_YSF;
+					}
+				}
 			}
 		}
 		break;

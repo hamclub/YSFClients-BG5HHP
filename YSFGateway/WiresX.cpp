@@ -274,7 +274,7 @@ WX_STATUS CWiresX::process(const unsigned char* data, const unsigned char* sourc
 		else {
 			if (::memcmp(m_command + 1U, DX_REQ, 3U) == 0) {
 				processDX(source);
-				return WXS_NONE;
+				return WXS_RECONNECT_CURRENT;
 			} else if (::memcmp(m_command + 1U, ALL_REQ, 3U) == 0) {
 				processAll(source, m_command + 5U);
 				return WXS_NONE;
