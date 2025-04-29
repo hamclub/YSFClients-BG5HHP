@@ -306,7 +306,7 @@ int CYSFGateway::run()
 	CStopWatch stopWatch;
 	stopWatch.start();
 
-	LogMessage("Starting YSFGateway-%s (HHPLink)", VERSION);
+	LogMessage("Starting YSFGateway-%s (HHPLink Support)", VERSION);
 	LogMessage("Built %s %s (GitID #%.7s)", __TIME__, __DATE__, gitversion);
 
 	while (!m_killed) {
