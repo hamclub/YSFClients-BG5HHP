@@ -421,7 +421,8 @@ WX_STATUS CWiresX::processConnect(const unsigned char* source, const unsigned ch
 			return WXS_SWITCH_TG;
 		}
 
-		return WXS_NONE;
+		// we need to continue switching real reflectors later.
+		// return WXS_NONE;
 	}
 
 	CYSFReflector* found = m_reflectors.findById(id);
