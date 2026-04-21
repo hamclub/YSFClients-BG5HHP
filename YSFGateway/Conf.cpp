@@ -217,7 +217,7 @@ bool CConf::read()
 			m_aprsDescription = value;
 	} else if (section == SECTION_NETWORK) {
 		if (::strcmp(key, "Startup") == 0)
-			m_networkStartup = value;
+			m_networkStartup = value ? value : "";
 		else if (::strcmp(key, "Options") == 0)
 			m_networkOptions = value;
 		else if (::strcmp(key, "InactivityTimeout") == 0)
@@ -229,9 +229,9 @@ bool CConf::read()
 		else if (::strcmp(key, "Debug") == 0)
 			m_networkDebug = ::atoi(value) == 1;
 		else if (::strcmp(key, "Address") == 0)
-			m_networkAddress = value;
+			m_networkAddress = value ? value : "";
 		else if (::strcmp(key, "Port") == 0)
-			m_networkPort = (unsigned int)::atoi(value);
+			m_networkPort = value ? (unsigned int)::atoi(value) : 0;
 	} else if (section == SECTION_YSF_NETWORK) {
 		if (::strcmp(key, "Enable") == 0)
 			m_ysfNetworkEnabled = ::atoi(value) == 1;
